@@ -29,5 +29,5 @@ node --check app.js
 ## 素材
 
 - `assets/niulai.mp3`：复用当前项目已有“牛来”音频。
-- `assets/head.png`：使用内置 imagegen 根据当前项目牛来三视图生成独立透明头像；提示词见 `assets/head-prompt.txt`。
+- `assets/head.png`：电子牛来头像。
 - 既有角色与音频素材的权利状态未在本项目中重新核实。

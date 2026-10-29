@@ -3,7 +3,7 @@
   "version": "1.4.0",
   "description": "支持 A 股、港股、美股的 3D 桌面盯盘宠物",
   "main": "main.js",
-  "author": "Codex",
+  "author": "raaay666-hash",
   "license": "MIT",
   "private": true,
   "scripts": {
