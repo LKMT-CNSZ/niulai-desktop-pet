@@ -12,5 +12,5 @@
 
 源文件没有前端依赖；`node prepare.mjs` 将运行文件复制到 dist/。需要 HTTPS（或本机 localhost）才能启用 Service Worker；从文件管理器直接打开 HTML 不提供离线安装能力。浏览器与各平台安装副本的本地数据可能独立，清理浏览器数据或卸载会移除计数。
 
-头像使用内置 imagegen 从父项目牛来三视图生成；提示词保存在 ../niulai-muyu/assets/head-prompt.txt。声音复用父项目 assets/audio/niulai.mp3。当前没有重新核实这些既有素材的公开发行授权。
+头像使用内置 imagegen 从父项目牛来三视图生成；提示词保存在 ../niulai-muyu/assets/head-prompt.txt。声音复用父项目 assets/audio/niulai.mp3。项目维护者表示电影方已开放版权，音频和牛头形象经过其改编，并同意上传。
 

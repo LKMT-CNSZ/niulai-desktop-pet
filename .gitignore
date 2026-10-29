@@ -12,7 +12,3 @@ artifacts/
 outputs/
 **/qa/
 **/.openai/
-assets/references/niulai-film/
-assets/audio/*.mp3
-niulai-mobile/assets/*.mp3
-niulai-muyu/assets/*.mp3
