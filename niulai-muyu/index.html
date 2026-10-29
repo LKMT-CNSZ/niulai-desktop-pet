@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14201c">
+  <meta name="description" content="点一下牛来，听一声牛来。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self' blob:; object-src 'none'; base-uri 'none'">
+  <title>电子牛来</title>
+  <link rel="icon" href="assets/head.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <button id="settings-open" class="icon-button" aria-label="打开设置" title="设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.8 3-.5 2a7 7 0 0 0-1.6.9l-2-.6-2.2 3.8L5 10.5a7 7 0 0 0 0 1.9L3.5 14l2.2 3.8 2-.6a7 7 0 0 0 1.6.9l.5 2h4.4l.5-2a7 7 0 0 0 1.6-.9l2 .6 2.2-3.8-1.5-1.6a7 7 0 0 0 0-1.9l1.5-1.4-2.2-3.8-2 .6a7 7 0 0 0-1.6-.9l-.5-2z"/><circle cx="12" cy="11.5" r="3"/></svg></button>
+      <div class="counts"><h1>本轮 <span id="session-count">0</span></h1><p>累计 <span id="total-count">0</span></p></div>
+      <span aria-hidden="true"></span>
+    </header>
+    <section class="stage" aria-label="点击牛来大头，或按空格键敲击">
+      <button id="bull" class="bull" aria-label="敲一下牛来" aria-keyshortcuts="Space"><img src="assets/head.png" alt="牛来大头" draggable="false"></button>
+    </section>
+  </main>
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog" class="dialog-header"><h2 id="settings-title">设置</h2><button class="icon-button" aria-label="关闭设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></form>
+    <div class="switch-row"><label for="sound-toggle">声音</label><input type="checkbox" id="sound-toggle" role="switch" checked></div>
+    <div class="setting-row"><label for="volume">音量 <span id="volume-value">75%</span></label><input id="volume" type="range" min="0" max="100" step="1" value="75"></div>
+    <div class="switch-row"><label for="auto-toggle">自动敲击</label><input type="checkbox" id="auto-toggle" role="switch"></div>
+    <fieldset class="tempo-field"><legend>间隔</legend><div class="tempo-options"><button type="button" data-tempo="800">0.8 秒</button><button type="button" data-tempo="1500">1.5 秒</button><button type="button" data-tempo="2500">2.5 秒</button><button type="button" data-tempo="4000">4 秒</button></div></fieldset>
+    <div class="switch-row"><label for="motion">点击动效</label><input type="checkbox" id="motion" role="switch" checked></div>
+    <button type="button" id="new-round" class="reset-button">开始新一轮</button><p class="setting-note">累计保留在这台设备上</p>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

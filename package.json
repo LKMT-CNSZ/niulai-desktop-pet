@@ -1,0 +1,116 @@
+{
+  "name": "niulai-desktop-pet",
+  "version": "1.4.0",
+  "description": "支持 A 股、港股、美股的 3D 桌面盯盘宠物",
+  "main": "main.js",
+  "author": "Codex",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build:renderer": "node scripts/build-renderer.js",
+    "start": "node scripts/build-renderer.js && electron .",
+    "preview": "node scripts/build-renderer.js && electron . --capture-preview",
+    "test:modules": "node scripts/test-renderer-modules.mjs && node scripts/test-market-symbols.cjs && node scripts/test-market-events.mjs && node scripts/test-feature-systems.mjs",
+    "test:market": "node scripts/test-market-events.mjs",
+    "test:roaming": "node scripts/test-roaming-geometry.js && node scripts/test-roaming-behavior.js && node scripts/test-home-lifecycle.js && node scripts/test-form-morph-state-machine.js",
+    "test:animation": "node scripts/test-skeletal-animation.mjs",
+    "test:regression": "node scripts/test-full-regression.mjs && npm run test:modules && npm run test:roaming && npm run test:animation && npm run model:validate",
+    "test:single-instance": "node scripts/test-single-instance.cjs",
+    "model:generate": "node scripts/generate-rigged-bull.mjs",
+    "model:prepare-continuous": ".tools\\hunyuan-venv\\Scripts\\python.exe scripts\\prepare-continuous-bull.py",
+    "model:rig-continuous": "node scripts/rig-continuous-bull.mjs",
+    "model:validate": "node scripts/validate-rigged-bull.mjs",
+    "model:preview": "node scripts/build-model-preview.js && electron scripts/capture-model-previews.js",
+    "preview:comic-effects": "node scripts/build-renderer.js && node scripts/capture-comic-effect-previews.mjs",
+    "dist": "node scripts/build-renderer.js && electron-builder",
+    "dist:win": "node scripts/build-renderer.js && electron-builder --win",
+    "dist:mac": "node scripts/build-renderer.js && electron-builder --mac",
+    "dist:mac:universal": "node scripts/build-renderer.js && electron-builder --mac --universal",
+    "dist:mac:arm64": "node scripts/build-renderer.js && electron-builder --mac --arm64",
+    "dist:mac:x64": "node scripts/build-renderer.js && electron-builder --mac --x64"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "0.25.9",
+    "three": "^0.170.0"
+  },
+  "build": {
+    "appId": "com.niulai.desktop-pet",
+    "productName": "牛来盯盘",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "afterPack": "scripts/after-pack.js",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "renderer.bundle.js",
+      "main-modules/**/*",
+      "renderer-modules/**/*",
+      "assets/**/*",
+      "!assets/models/bull-rigged-continuous.glb",
+      "docs/**/*",
+      "!node_modules/**/*"
+    ],
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "牛来盯盘",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}",
+      "requestExecutionLevel": "user"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.finance",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "minimumSystemVersion": "10.15"
+    },
+    "dmg": {
+      "title": "${productName}",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  }
+}

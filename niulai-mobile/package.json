@@ -1,0 +1,1 @@
+{"name":"niulai-mobile","version":"1.0.0","private":true,"description":"电子牛来手机应用","scripts":{"build":"node prepare.mjs"}}

@@ -1,0 +1,27 @@
+{
+  "name": "niulai-muyu",
+  "version": "1.0.0",
+  "description": "电子牛来，一敲牛气就来。",
+  "main": "main.cjs",
+  "author": "Ray",
+  "private": true,
+  "scripts": {
+    "start": "..\\node_modules\\.bin\\electron.cmd .",
+    "dist:win": "..\\node_modules\\.bin\\electron-builder.cmd --win portable"
+  },
+  "build": {
+    "appId": "art.raaay.niulai-muyu",
+    "productName": "电子牛来",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {"output": "release"},
+    "files": ["main.cjs", "index.html", "styles.css", "app.js", "assets/**", "README.md"],
+    "electronLanguages": ["zh-CN", "en-US"],
+    "win": {
+      "target": [{"target": "portable", "arch": ["x64"]}],
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "artifactName": "Niulai-1.0.0-portable.exe"
+    }
+  }
+}

@@ -1,0 +1,1765 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>牛来盯盘</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 300px;
+        height: 300px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: transparent;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-app-region: drag;
+        cursor: default;
+      }
+
+      #scene {
+        position: fixed;
+        inset: 0;
+        width: 300px;
+        height: 300px;
+      }
+
+      #scene canvas {
+        display: block;
+        pointer-events: none;
+      }
+
+      #quote-card {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 12;
+        width: 126px;
+        min-height: 55px;
+        padding: 7px 8px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 10px;
+        background: rgba(14, 17, 20, 0.22);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.13);
+        backdrop-filter: blur(7px);
+        -webkit-backdrop-filter: blur(7px);
+        -webkit-app-region: no-drag;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      #quote-card:hover {
+        border-color: rgba(255, 255, 255, 0.27);
+        background: rgba(14, 17, 20, 0.32);
+      }
+
+      .quote-head,
+      .quote-values {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 5px;
+      }
+
+      #quote-name {
+        max-width: 76px;
+        overflow: hidden;
+        color: rgba(255, 255, 255, 0.86);
+        font: 600 11px/1.2 system-ui, "Microsoft YaHei", sans-serif;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #quote-code {
+        color: rgba(255, 255, 255, 0.36);
+        font: 9px/1.2 ui-monospace, Consolas, monospace;
+      }
+
+      .quote-values {
+        margin-top: 5px;
+      }
+
+      #quote-price {
+        color: rgba(255, 255, 255, 0.92);
+        font: 700 16px/1 ui-monospace, Consolas, monospace;
+      }
+
+      #quote-change {
+        color: rgba(255, 255, 255, 0.72);
+        font: 700 10px/1 ui-monospace, Consolas, monospace;
+        text-align: right;
+      }
+
+      #quote-trend,
+      #roaming-quote-extra {
+        display: none;
+      }
+
+      #quote-card.rising #quote-price,
+      #quote-card.rising #quote-change {
+        color: #ff5948;
+        text-shadow: 0 0 8px rgba(255, 66, 48, 0.28);
+      }
+
+      #quote-card.falling #quote-price,
+      #quote-card.falling #quote-change {
+        color: #38d27e;
+        text-shadow: 0 0 8px rgba(38, 205, 113, 0.22);
+      }
+
+      #stock-detail-panel {
+        position: fixed;
+        inset: 36px 9px 38px;
+        z-index: 46;
+        padding: 11px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.17);
+        border-radius: 17px;
+        background: linear-gradient(145deg, rgba(28, 34, 41, 0.96), rgba(8, 12, 16, 0.94));
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+        color: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-7px) scale(0.98);
+        transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+        -webkit-app-region: no-drag;
+      }
+
+      #stock-detail-panel.open { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+      .detail-head, .detail-price-row, .detail-line { display: flex; align-items: center; justify-content: space-between; }
+      .detail-head { height: 27px; padding-bottom: 7px; border-bottom: 1px solid rgba(255, 255, 255, 0.09); }
+      #detail-name { font: 700 13px/1 system-ui, "Microsoft YaHei", sans-serif; }
+      #detail-code { margin-left: 6px; color: rgba(255,255,255,.42); font: 9px/1 Consolas, monospace; }
+      #detail-close { width: 23px; height: 23px; padding: 0; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; background: rgba(255,255,255,.06); color: rgba(255,255,255,.78); cursor: pointer; }
+      .detail-price-row { height: 53px; }
+      #detail-price { font: 800 28px/1 Consolas, monospace; }
+      #detail-change { font: 700 12px/1.25 Consolas, monospace; text-align: right; white-space: pre-line; }
+      #stock-detail-panel.rising #detail-price, #stock-detail-panel.rising #detail-change { color: #ff6653; }
+      #stock-detail-panel.falling #detail-price, #stock-detail-panel.falling #detail-change { color: #42d986; }
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .detail-cell { min-width: 0; padding: 7px 8px; border-radius: 9px; background: rgba(255,255,255,.055); }
+      .detail-cell span { display: block; color: rgba(255,255,255,.43); font: 9px/1.2 system-ui,"Microsoft YaHei",sans-serif; }
+      .detail-cell strong { display: block; margin-top: 4px; overflow: hidden; color: rgba(255,255,255,.86); font: 700 11px/1.2 Consolas,monospace; text-overflow: ellipsis; white-space: nowrap; }
+      .detail-line { margin-top: 8px; color: rgba(255,255,255,.45); font: 9px/1.2 system-ui,"Microsoft YaHei",sans-serif; }
+      #detail-position { margin-top: 7px; overflow: hidden; color: #ffc067; font: 700 10px/1.3 system-ui,"Microsoft YaHei",sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+      #detail-position.loss { color: #42d986; }
+
+      #stock-picker-panel {
+        position: fixed;
+        inset: 36px 9px 38px;
+        z-index: 47;
+        display: flex;
+        flex-direction: column;
+        padding: 11px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.17);
+        border-radius: 17px;
+        background: linear-gradient(145deg, rgba(28, 34, 41, 0.97), rgba(8, 12, 16, 0.95));
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+        color: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(14px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-7px) scale(0.98);
+        transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+        -webkit-app-region: no-drag;
+      }
+      #stock-picker-panel.open { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+      .picker-head { display:flex; align-items:center; justify-content:space-between; height:27px; padding-bottom:7px; border-bottom:1px solid rgba(255,255,255,.09); font:700 13px/1 system-ui,"Microsoft YaHei",sans-serif; }
+      #picker-close { width:23px; height:23px; padding:0; border:1px solid rgba(255,255,255,.13); border-radius:50%; background:rgba(255,255,255,.06); color:rgba(255,255,255,.78); cursor:pointer; }
+      #saved-stock-list { display:grid; gap:5px; flex:1; min-height:0; margin:8px 0; overflow-y:auto; }
+      .saved-stock-row { display:grid; grid-template-columns:32px 1fr auto; align-items:center; gap:6px; width:100%; min-height:36px; padding:5px 7px; border:1px solid rgba(255,255,255,.08); border-radius:9px; background:rgba(255,255,255,.045); color:inherit; text-align:left; cursor:pointer; }
+      .saved-stock-row:hover, .saved-stock-row.current { border-color:rgba(255,126,84,.35); background:rgba(255,105,70,.10); }
+      .market-badge { display:inline-grid; place-items:center; min-width:29px; height:18px; border-radius:5px; background:rgba(91,151,208,.18); color:#9ed0ff; font:700 8px/1 system-ui,"Microsoft YaHei",sans-serif; }
+      .saved-stock-main { min-width:0; }
+      .saved-stock-main strong, .saved-stock-main span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .saved-stock-main strong { font:700 10px/1.2 system-ui,"Microsoft YaHei",sans-serif; }
+      .saved-stock-main span { margin-top:3px; color:rgba(255,255,255,.42); font:8px/1 Consolas,monospace; }
+      .saved-stock-position { color:rgba(255,255,255,.48); font:8px/1.25 system-ui,"Microsoft YaHei",sans-serif; text-align:right; }
+      .picker-empty { display:grid; place-items:center; padding:25px 12px; color:rgba(255,255,255,.48); font:9px/1.5 system-ui,"Microsoft YaHei",sans-serif; text-align:center; }
+      .picker-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+      .picker-actions button, #detail-web { height:25px; border:1px solid rgba(116,180,235,.23); border-radius:7px; background:rgba(77,135,189,.13); color:rgba(255,255,255,.8); font:9px/1 system-ui,"Microsoft YaHei",sans-serif; cursor:pointer; }
+      #detail-web { width:100%; margin-top:7px; }
+
+      .market-options { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+      .market-options label { display:flex; align-items:center; justify-content:center; gap:3px; min-height:23px; border:1px solid rgba(255,255,255,.08); border-radius:7px; background:rgba(255,255,255,.035); font:9px/1 system-ui,"Microsoft YaHei",sans-serif; cursor:pointer; }
+      .market-options input { width:12px; height:12px; margin:0; accent-color:#ff754f; }
+      .stock-search-row { display:grid; grid-template-columns:1fr 44px; gap:5px; }
+      #stock-search-button { border:1px solid rgba(255,137,91,.28); border-radius:7px; background:rgba(235,90,60,.15); color:#ffc0a2; font:9px/1 system-ui,"Microsoft YaHei",sans-serif; cursor:pointer; }
+      #stock-search-results { display:grid; gap:3px; max-height:96px; overflow-y:auto; }
+      .stock-search-result { display:grid; grid-template-columns:29px 1fr auto; align-items:center; gap:5px; min-height:29px; padding:4px 5px; border:1px solid rgba(255,255,255,.07); border-radius:7px; background:rgba(255,255,255,.035); color:inherit; text-align:left; cursor:pointer; }
+      .stock-search-result:hover { border-color:rgba(255,126,84,.32); background:rgba(255,105,70,.08); }
+      .stock-search-result strong { overflow:hidden; font:700 9px/1.2 system-ui,"Microsoft YaHei",sans-serif; text-overflow:ellipsis; white-space:nowrap; }
+      .stock-search-result small { color:rgba(255,255,255,.42); font:8px/1 Consolas,monospace; }
+      .search-message { padding:5px; color:rgba(255,255,255,.45); font:8px/1.3 system-ui,"Microsoft YaHei",sans-serif; text-align:center; }
+
+      #settings-toggle {
+        position: fixed;
+        top: 8px;
+        right: 38px;
+        z-index: 15;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.24);
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+        line-height: 22px;
+        cursor: pointer;
+        opacity: 0.68;
+        -webkit-app-region: no-drag;
+      }
+
+      #settings-toggle:hover,
+      #settings-toggle[aria-expanded="true"] {
+        opacity: 1;
+        background: rgba(42, 47, 53, 0.68);
+      }
+
+      #drag-handle {
+        position: fixed;
+        top: 7px;
+        left: 50%;
+        z-index: 31;
+        width: 56px;
+        height: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 12px;
+        background: rgba(10, 13, 17, 0.22);
+        color: rgba(255, 255, 255, 0.54);
+        font: 700 12px/21px system-ui, sans-serif;
+        letter-spacing: 3px;
+        text-align: center;
+        cursor: move;
+        transform: translateX(-50%);
+        -webkit-app-region: no-drag;
+      }
+
+      #drag-handle.dragging {
+        background: rgba(51, 137, 207, 0.58);
+        color: #fff;
+        cursor: grabbing;
+      }
+
+      #window-reset {
+        position: fixed;
+        top: 8px;
+        right: 68px;
+        z-index: 32;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.24);
+        color: rgba(255, 255, 255, 0.72);
+        font: 13px/22px system-ui, sans-serif;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+
+      #window-reset:hover {
+        background: rgba(42, 47, 53, 0.72);
+        color: #fff;
+      }
+
+      #settings-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        width: 300px;
+        height: 300px;
+        padding: 9px 11px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 18px;
+        background: linear-gradient(
+          145deg,
+          rgba(24, 29, 35, 0.90),
+          rgba(10, 13, 17, 0.82)
+        );
+        box-shadow: -10px 0 34px rgba(0, 0, 0, 0.34);
+        color: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        -webkit-app-region: no-drag;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(22px) scale(0.985);
+        transform-origin: right center;
+        transition: opacity 0.20s ease, transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      #settings-panel.open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0) scale(1);
+      }
+
+      body.ui-panel-open #quote-card, body.ui-panel-open #interaction-layer,
+      body.ui-panel-open #pet-toolbar, body.ui-panel-open #position-pnl,
+      body.ui-panel-open #status, body.ui-panel-open #speech-bubble,
+      body.ui-panel-open #settings-toggle, body.ui-panel-open #window-reset,
+      body.ui-panel-open #drag-handle,
+      body.ui-panel-open #scene, body.ui-panel-open #sprite-mode,
+      body.ui-panel-open #incense-2d, body.ui-panel-open #alert-toast,
+      body.ui-panel-open #quiet-indicator {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      body.roaming-anchor #scene {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      body.roaming-overlay #settings-toggle,
+      body.roaming-overlay #window-reset,
+      body.roaming-overlay #drag-handle,
+      body.roaming-overlay #quick-symbol,
+      body.roaming-overlay #settings-panel,
+      body.roaming-overlay #feature-panel,
+      body.roaming-overlay #close-summary-panel,
+      body.roaming-overlay #stock-detail-panel,
+      body.roaming-overlay #stock-picker-panel,
+      body.roaming-overlay #help-panel,
+      body.roaming-overlay #position-pnl,
+      body.roaming-overlay #status,
+      body.roaming-overlay #pet-toolbar,
+      body.roaming-overlay > #close,
+      body.roaming-overlay #exit-confirm,
+      body.roaming-overlay #sprite-mode,
+      body.roaming-overlay #incense-2d {
+        display: none !important;
+      }
+
+      body.roaming-overlay {
+        isolation: isolate;
+      }
+
+      body.roaming-overlay #quote-card {
+        top: 8px;
+        left: 6px;
+        z-index: 18;
+        width: 116px;
+        min-height: 49px;
+        padding: 6px 7px;
+        overflow: hidden;
+        border-color: rgba(255, 255, 255, 0.20);
+        border-radius: 12px;
+        background: linear-gradient(145deg, rgba(28, 33, 39, 0.76), rgba(8, 12, 16, 0.62));
+        box-shadow: 0 7px 22px rgba(0, 0, 0, 0.26), inset 0 1px rgba(255, 255, 255, 0.08);
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        transform-origin: top left;
+        transition:
+          width 0.18s ease,
+          min-height 0.18s ease,
+          opacity 0.13s ease,
+          transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+          background 0.18s ease;
+      }
+
+      body.roaming-overlay[data-quote-side="right"] #quote-card {
+        transform: translateX(172px) scale(1);
+        transform-origin: top right;
+      }
+
+      body.roaming-overlay #quote-card[hidden] {
+        display: none !important;
+      }
+
+      body.roaming-overlay #quote-card:hover,
+      body.roaming-overlay #quote-card:focus-visible,
+      body.roaming-overlay #quote-card:focus-within {
+        width: 140px;
+        min-height: 119px;
+        background: linear-gradient(145deg, rgba(31, 37, 44, 0.94), rgba(8, 12, 16, 0.89));
+      }
+
+      body.roaming-overlay[data-quote-side="right"] #quote-card:hover,
+      body.roaming-overlay[data-quote-side="right"] #quote-card:focus-visible,
+      body.roaming-overlay[data-quote-side="right"] #quote-card:focus-within {
+        transform: translateX(148px) scale(1);
+      }
+
+      body.roaming-overlay.quote-action-hidden #quote-card {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      body.roaming-overlay.quote-action-hidden[data-quote-side="left"] #quote-card {
+        transform: translateX(-8px) scale(0.78);
+      }
+
+      body.roaming-overlay.quote-action-hidden[data-quote-side="right"] #quote-card {
+        transform: translateX(184px) scale(0.78);
+      }
+
+      body.roaming-overlay #quote-name {
+        max-width: 90px;
+        font-size: 10px;
+      }
+
+      body.roaming-overlay #quote-code {
+        display: none;
+      }
+
+      body.roaming-overlay .quote-values {
+        justify-content: flex-start;
+        gap: 4px;
+        margin-top: 4px;
+      }
+
+      body.roaming-overlay #quote-price {
+        font-size: 15px;
+      }
+
+      body.roaming-overlay #quote-trend {
+        display: inline;
+        color: rgba(255, 255, 255, 0.70);
+        font: 800 11px/1 ui-monospace, Consolas, monospace;
+      }
+
+      body.roaming-overlay #quote-change {
+        min-width: 0;
+        font-size: 0;
+      }
+
+      body.roaming-overlay #quote-change::after {
+        content: attr(data-pct);
+        font: 700 9px/1 ui-monospace, Consolas, monospace;
+      }
+
+      body.roaming-overlay #roaming-quote-extra {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 3px;
+        max-height: 0;
+        margin-top: 0;
+        overflow: hidden;
+        border-top: 1px solid transparent;
+        opacity: 0;
+        transition: max-height 0.18s ease, margin-top 0.18s ease, opacity 0.14s ease;
+      }
+
+      body.roaming-overlay #quote-card:hover #roaming-quote-extra,
+      body.roaming-overlay #quote-card:focus-visible #roaming-quote-extra,
+      body.roaming-overlay #quote-card:focus-within #roaming-quote-extra {
+        max-height: 74px;
+        margin-top: 6px;
+        padding-top: 5px;
+        border-top-color: rgba(255, 255, 255, 0.10);
+        opacity: 1;
+      }
+
+      .roaming-quote-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 5px;
+        color: rgba(255, 255, 255, 0.48);
+        font: 8px/1.15 system-ui, "Microsoft YaHei", sans-serif;
+      }
+
+      .roaming-quote-row strong {
+        overflow: hidden;
+        color: rgba(255, 255, 255, 0.86);
+        font: 700 8px/1.15 ui-monospace, Consolas, monospace;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #roaming-fun-unit {
+        overflow: hidden;
+        color: #ffc66e;
+        font: 700 8px/1.2 system-ui, "Microsoft YaHei", sans-serif;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      body.roaming-overlay #quote-card.falling #roaming-fun-unit {
+        color: #54dd94;
+      }
+
+      body.roaming-overlay #quote-card.disconnected #quote-price,
+      body.roaming-overlay #quote-card.disconnected #quote-change,
+      body.roaming-overlay #quote-card.disconnected #quote-trend {
+        color: rgba(255, 205, 108, 0.88);
+      }
+
+      body.roaming-overlay::before {
+        position: fixed;
+        inset: 8px;
+        z-index: 0;
+        border-radius: 50%;
+        background: radial-gradient(
+          ellipse at 50% 52%,
+          rgba(9, 11, 14, 0.72) 0%,
+          rgba(9, 11, 14, 0.48) 36%,
+          rgba(9, 11, 14, 0.16) 58%,
+          rgba(9, 11, 14, 0) 76%
+        );
+        content: "";
+        pointer-events: none;
+      }
+
+      body.roaming-overlay #scene {
+        z-index: 1;
+      }
+
+      body.roaming-overlay #interaction-layer,
+      body.roaming-overlay #speech-bubble {
+        z-index: 8;
+      }
+
+      .settings-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 20px;
+        margin-bottom: 2px;
+        font: 700 12px/1.2 system-ui, "Microsoft YaHei", sans-serif;
+      }
+
+      .settings-title-actions {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      #settings-close,
+      #settings-reset,
+      #settings-help,
+      #settings-recenter,
+      #settings-features {
+        padding: 3px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.60);
+        font: 9px/1.2 system-ui, "Microsoft YaHei", sans-serif;
+        cursor: pointer;
+      }
+
+      #settings-close {
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 12px;
+      }
+
+      #feature-panel,
+      #close-summary-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 24;
+        width: 300px;
+        height: 300px;
+        padding: 10px 11px;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 18px;
+        background: linear-gradient(145deg, rgba(24,29,35,.94), rgba(10,13,17,.90));
+        box-shadow: 0 14px 42px rgba(0,0,0,.42);
+        color: rgba(255,255,255,.88);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px) scale(.98);
+        transition: opacity .18s ease, transform .22s ease;
+        -webkit-app-region: no-drag;
+      }
+
+      #feature-panel.open,
+      #close-summary-panel.open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      .feature-head,
+      .summary-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 22px;
+        font: 700 12px/1.2 system-ui,"Microsoft YaHei",sans-serif;
+      }
+
+      .feature-head button,
+      .summary-head button {
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 1px solid rgba(255,255,255,.13);
+        border-radius: 50%;
+        background: rgba(255,255,255,.06);
+        color: rgba(255,255,255,.8);
+        cursor: pointer;
+      }
+
+      #feature-form {
+        height: 251px;
+        margin-top: 5px;
+        padding-right: 3px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+      }
+
+      .feature-section {
+        margin-bottom: 7px;
+        padding: 7px;
+        border: 1px solid rgba(255,255,255,.09);
+        border-radius: 9px;
+        background: rgba(255,255,255,.035);
+      }
+
+      .feature-section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        color: #ffc778;
+        font: 700 10px/1.2 system-ui,"Microsoft YaHei",sans-serif;
+      }
+
+      .feature-checks,
+      .quiet-times,
+      .trigger-editor {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 5px;
+        font: 9px/1.2 system-ui,"Microsoft YaHei",sans-serif;
+      }
+
+      .feature-checks label,
+      .trigger-sound {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .feature-section input,
+      .feature-section select {
+        min-width: 0;
+        height: 23px;
+        border: 1px solid rgba(255,255,255,.13);
+        border-radius: 6px;
+        outline: none;
+        background: rgba(0,0,0,.22);
+        color: rgba(255,255,255,.9);
+        font: 9px/1.2 system-ui,"Microsoft YaHei",sans-serif;
+      }
+
+      .feature-section select option { background: #171b20; }
+      .feature-section input[type="checkbox"] { width: 13px; height: 13px; accent-color: #ff754f; }
+      .quiet-times label { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 3px; }
+      .trigger-editor { grid-template-columns: 1fr 1fr; }
+      .trigger-editor button,
+      #feature-save,
+      #summary-disable {
+        height: 24px;
+        border: 1px solid rgba(255,153,93,.35);
+        border-radius: 6px;
+        background: linear-gradient(135deg,rgba(239,90,63,.8),rgba(255,138,78,.8));
+        color: #fff;
+        font: 9px/1 system-ui,"Microsoft YaHei",sans-serif;
+        cursor: pointer;
+      }
+
+      #trigger-list { display: grid; gap: 4px; margin-top: 5px; }
+      .trigger-item { display: grid; grid-template-columns: 1fr 28px; gap: 4px; align-items: center; padding: 4px 5px; border-radius: 6px; background: rgba(0,0,0,.17); color: rgba(255,255,255,.68); font: 8px/1.25 system-ui,"Microsoft YaHei",sans-serif; }
+      .trigger-item button { width: 26px; height: 20px; border: 0; border-radius: 5px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.65); cursor: pointer; }
+      #emotion-status { color: rgba(255,255,255,.58); font: 9px/1.3 system-ui,"Microsoft YaHei",sans-serif; }
+      #feature-save { width: 100%; margin-top: 1px; }
+
+      #close-summary-panel { z-index: 23; padding: 13px; }
+      .summary-date { margin: 5px 0 8px; color: rgba(255,255,255,.48); font: 9px/1 system-ui,"Microsoft YaHei",sans-serif; }
+      .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .summary-cell { padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; background: rgba(255,255,255,.035); }
+      .summary-cell span { display: block; color: rgba(255,255,255,.46); font: 8px/1 system-ui,"Microsoft YaHei",sans-serif; }
+      .summary-cell strong { display: block; margin-top: 4px; color: rgba(255,255,255,.9); font: 700 11px/1 ui-monospace,Consolas,monospace; }
+      #summary-move { grid-column: 1/-1; }
+      #summary-comment { margin: 8px 0; padding: 7px; border-left: 2px solid #ff9c58; color: rgba(255,255,255,.72); font: 10px/1.4 system-ui,"Microsoft YaHei",sans-serif; }
+      #summary-disable { width: 100%; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); }
+
+      #alert-toast {
+        position: fixed;
+        left: 42px;
+        right: 42px;
+        top: 104px;
+        z-index: 16;
+        padding: 6px 8px;
+        border: 1px solid rgba(255,203,111,.24);
+        border-radius: 9px;
+        background: rgba(18,22,27,.78);
+        color: #ffd18a;
+        font: 700 9px/1.3 system-ui,"Microsoft YaHei",sans-serif;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-5px);
+        transition: opacity .16s ease, transform .18s ease;
+      }
+      #alert-toast.show { opacity: 1; transform: translateY(0); }
+      #quiet-indicator { position: fixed; right: 38px; top: 8px; z-index: 12; padding: 3px 5px; border-radius: 6px; background: rgba(25,31,37,.48); color: rgba(255,255,255,.52); font: 8px/1 system-ui,"Microsoft YaHei",sans-serif; opacity: 0; pointer-events: none; }
+      body.quiet-office #quiet-indicator { opacity: 1; }
+
+      body[data-emotion="tired"] #sprite-eyelid-left,
+      body[data-emotion="tired"] #sprite-eyelid-right { transform: translateY(4px); }
+      body[data-emotion="frustrated"] #sprite-mode { filter: saturate(.88) brightness(.94); }
+      body[data-emotion="excited"] #sprite-mode,
+      body[data-emotion="smug"] #sprite-mode { filter: saturate(1.08) brightness(1.03); }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: 78px 1fr;
+        align-items: center;
+        gap: 6px;
+        height: 23px;
+        font: 10px/1 system-ui, "Microsoft YaHei", sans-serif;
+      }
+
+      .field-row input,
+      .field-row select {
+        min-width: 0;
+        height: 22px;
+        padding: 0 7px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 6px;
+        outline: none;
+        background: rgba(0, 0, 0, 0.20);
+        color: rgba(255, 255, 255, 0.92);
+        font: 10px/23px ui-monospace, Consolas, monospace;
+        -webkit-app-region: no-drag;
+      }
+
+      .field-row select {
+        appearance: none;
+        cursor: pointer;
+        background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.6) 50%), linear-gradient(135deg, rgba(255,255,255,.6) 50%, transparent 50%);
+        background-position: calc(100% - 10px) 9px, calc(100% - 6px) 9px;
+        background-repeat: no-repeat;
+        background-size: 4px 4px, 4px 4px;
+      }
+
+      .field-row select option {
+        background: #171b20;
+        color: #fff;
+      }
+
+      .field-row input:focus,
+      .field-row select:focus {
+        border-color: rgba(255, 117, 79, 0.68);
+        box-shadow: 0 0 0 2px rgba(255, 117, 79, 0.10);
+      }
+
+      .settings-divider {
+        height: 1px;
+        margin: 3px 0 2px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .setting-row {
+        display: grid;
+        grid-template-columns: 58px 1fr 32px;
+        align-items: center;
+        gap: 6px;
+        height: 18px;
+        font: 10px/1 system-ui, "Microsoft YaHei", sans-serif;
+      }
+
+      .setting-row output {
+        color: rgba(255, 255, 255, 0.52);
+        font: 9px/1 ui-monospace, Consolas, monospace;
+        text-align: right;
+      }
+
+      .setting-row input[type="range"] {
+        width: 100%;
+        height: 3px;
+        margin: 0;
+        accent-color: #ff754f;
+        cursor: pointer;
+      }
+
+      .setting-switches {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: center;
+        gap: 4px 6px;
+        min-height: 36px;
+        padding-top: 3px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        font: 9px/1 system-ui, "Microsoft YaHei", sans-serif;
+      }
+
+      .setting-switches label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .setting-switches input {
+        width: 13px;
+        height: 13px;
+        margin: 0;
+        accent-color: #ff754f;
+      }
+
+      .settings-actions {
+        display: grid;
+        grid-template-columns: 76px 1fr 58px;
+        gap: 7px;
+        margin-top: 3px;
+      }
+
+      .settings-actions button {
+        height: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 7px;
+        color: rgba(255, 255, 255, 0.82);
+        font: 10px/1 system-ui, "Microsoft YaHei", sans-serif;
+        cursor: pointer;
+      }
+
+      #settings-panel .settings-title {
+        height: 24px;
+        margin: 0 30px 4px 2px;
+      }
+
+      #settings-form {
+        display: flex;
+        flex-direction: column;
+        height: 252px;
+        min-height: 0;
+      }
+
+      .settings-scroll {
+        flex: 1;
+        min-height: 0;
+        padding-right: 3px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,.26) transparent;
+      }
+
+      .setting-group {
+        margin-bottom: 5px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.09);
+        border-radius: 9px;
+        background: rgba(255,255,255,.032);
+      }
+
+      .setting-group summary {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 27px;
+        padding: 4px 8px;
+        color: rgba(255,255,255,.78);
+        font: 700 10px/1.1 system-ui,"Microsoft YaHei",sans-serif;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .setting-group summary::-webkit-details-marker { display: none; }
+      .setting-group summary::after { margin-left: auto; color: rgba(255,255,255,.34); content: "⌄"; transition: transform .16s ease; }
+      .setting-group[open] summary::after { transform: rotate(180deg); }
+      .setting-group summary b { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: rgba(255,117,79,.16); color: #ffb16e; font: 800 8px/1 ui-monospace,Consolas,monospace; }
+
+      .setting-group-body {
+        display: grid;
+        gap: 4px;
+        padding: 3px 8px 7px;
+        border-top: 1px solid rgba(255,255,255,.06);
+      }
+
+      .setting-help,
+      .privacy-note {
+        margin: 0;
+        color: rgba(255,255,255,.46);
+        font: 8px/1.35 system-ui,"Microsoft YaHei",sans-serif;
+      }
+
+      .privacy-note { color: rgba(188,226,211,.64); }
+      .restart-note { color: rgba(255,206,124,.58); }
+
+      .switch-line {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 20px;
+        font: 9px/1.2 system-ui,"Microsoft YaHei",sans-serif;
+        cursor: pointer;
+      }
+
+      .switch-line input { width: 13px; height: 13px; margin: 0; accent-color: #ff754f; }
+      .inline-setting-button { height: 24px; border: 1px solid rgba(116,180,235,.24); border-radius: 7px; background: rgba(77,135,189,.13); color: rgba(255,255,255,.78); font: 9px/1 system-ui,"Microsoft YaHei",sans-serif; cursor: pointer; }
+
+      .recommendation {
+        display: none;
+        grid-template-columns: 1fr 62px;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 6px;
+        border: 1px solid rgba(255,190,99,.14);
+        border-radius: 7px;
+        background: rgba(255,171,72,.055);
+        color: rgba(255,213,146,.65);
+        font: 8px/1.3 system-ui,"Microsoft YaHei",sans-serif;
+      }
+      #settings-panel.power-recommendation-visible .recommendation { display: grid; }
+      .recommendation button { height: 21px; border: 1px solid rgba(255,190,99,.18); border-radius: 5px; background: rgba(255,171,72,.10); color: #ffd49a; font: 8px/1 system-ui,"Microsoft YaHei",sans-serif; cursor: pointer; }
+
+      #settings-panel .settings-actions {
+        flex: none;
+        grid-template-columns: 72px 1fr 54px;
+        margin-top: 5px;
+        padding-top: 5px;
+        border-top: 1px solid rgba(255,255,255,.08);
+        background: linear-gradient(180deg,rgba(15,18,22,.3),rgba(15,18,22,.96) 25%);
+      }
+
+      #settings-panel #settings-reset,
+      #settings-panel #settings-cancel { background: rgba(255,255,255,.055); }
+      body.ui-panel-open > #close { z-index: 70; opacity: 1; background: rgba(110,28,24,.58); }
+
+      #settings-save {
+        background: linear-gradient(135deg, #ef5a3f, #ff8a4e);
+        border-color: rgba(255, 156, 102, 0.50);
+      }
+
+      #settings-cancel {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      #settings-recall {
+        background: rgba(77, 135, 189, 0.18);
+        border-color: rgba(116, 180, 235, 0.28);
+      }
+
+      #position-pnl {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 36px;
+        z-index: 11;
+        overflow: hidden;
+        padding: 4px 7px;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 8px;
+        background: rgba(12, 15, 18, 0.26);
+        color: rgba(255, 255, 255, 0.82);
+        font: 700 10px/1.2 system-ui, "Microsoft YaHei", sans-serif;
+        text-align: center;
+        text-overflow: ellipsis;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.58);
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      #position-pnl.profit {
+        color: #ffbe55;
+        border-color: rgba(255, 106, 72, 0.20);
+      }
+
+      #position-pnl.loss {
+        color: #42d986;
+        border-color: rgba(52, 211, 125, 0.18);
+      }
+
+      #pnl-today {
+        margin-top: 2px;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 9px;
+        font-weight: 500;
+      }
+
+      body.has-position #status {
+        bottom: 72px;
+      }
+
+      #status {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 36px;
+        margin: 0;
+        padding: 0 8px;
+        text-align: center;
+        font: 12px/1.25 system-ui, "Microsoft YaHei", "PingFang SC",
+          sans-serif;
+        letter-spacing: 0;
+        color: rgba(255, 255, 255, 0.62);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      #status.bullish {
+        color: rgba(255, 126, 88, 0.92);
+      }
+
+      #status.bearish {
+        color: rgba(115, 224, 148, 0.9);
+      }
+
+      #status.connecting {
+        color: rgba(255, 255, 255, 0.42);
+      }
+
+      #interaction-layer {
+        position: fixed;
+        top: 64px;
+        left: 46px;
+        z-index: 8;
+        width: 208px;
+        height: 165px;
+        background: transparent;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+
+      #pet-toolbar {
+        position: fixed;
+        left: 50%;
+        bottom: 6px;
+        z-index: 16;
+        display: flex;
+        gap: 4px;
+        transform: translateX(-50%);
+        -webkit-app-region: no-drag;
+      }
+
+      #pet-toolbar button {
+        height: 25px;
+        padding: 0 7px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: rgba(16, 20, 24, 0.32);
+        color: rgba(255, 255, 255, 0.72);
+        font: 9px/1 system-ui, "Microsoft YaHei", sans-serif;
+        white-space: nowrap;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+        backdrop-filter: blur(7px);
+        cursor: pointer;
+        transition: transform 0.14s ease, background 0.14s ease;
+        -webkit-app-region: no-drag;
+      }
+
+      #pet-toolbar button:hover {
+        background: rgba(38, 44, 50, 0.68);
+        transform: translateY(-2px);
+      }
+
+      #speech-bubble {
+        position: fixed;
+        z-index: 13;
+        max-width: 176px;
+        padding: 6px 9px;
+        border: 1px solid rgba(30, 30, 30, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.88);
+        color: rgba(22, 25, 28, 0.90);
+        font: 600 10px/1.35 system-ui, "Microsoft YaHei", sans-serif;
+        text-align: center;
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.22);
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -100%) scale(0.78);
+        transition: opacity 0.18s ease, transform 0.20s ease;
+      }
+
+      #speech-bubble::after {
+        position: absolute;
+        left: 50%;
+        bottom: -6px;
+        width: 11px;
+        height: 11px;
+        background: rgba(255, 255, 255, 0.88);
+        content: "";
+        transform: translateX(-50%) rotate(45deg);
+      }
+
+      #speech-bubble.show {
+        opacity: 1;
+        transform: translate(-50%, -100%) scale(1);
+      }
+
+      #sprite-mode {
+        position: fixed;
+        left: 0;
+        bottom: 25px;
+        z-index: 4;
+        width: 300px;
+        height: 270px;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(8px) scale(0.96);
+        transform-origin: 50% 78%;
+        transition: opacity 0.28s ease, transform 0.32s ease;
+      }
+
+      #sprite-bull {
+        position: absolute;
+        left: 15px;
+        top: 0;
+        width: 270px;
+        height: 270px;
+        opacity: 0;
+        filter: drop-shadow(0 10px 11px rgba(0, 0, 0, 0.24));
+        transform-origin: 50% 76%;
+      }
+
+      #sprite-mode.ready #sprite-bull {
+        opacity: 1;
+      }
+
+      body.mode-2d #sprite-mode {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      body.mode-2d #sprite-mode.ready #sprite-bull {
+        animation: sprite-watch-breathe 3.4s ease-in-out infinite;
+      }
+
+      #incense-2d {
+        position: fixed;
+        left: 38px;
+        bottom: 55px;
+        z-index: 9;
+        width: 72px;
+        height: 126px;
+        pointer-events: none;
+        opacity: 0;
+        filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.34));
+        transform: translateY(10px) scale(0.92);
+        transition: opacity 0.24s ease, transform 0.28s ease;
+      }
+
+      body.mode-2d #incense-2d.active {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .incense-2d-pot {
+        position: absolute;
+        left: 12px;
+        bottom: 0;
+        width: 48px;
+        height: 17px;
+        border-radius: 5px 5px 16px 16px;
+        background: linear-gradient(180deg, #8f3134, #42151c);
+        box-shadow: inset 0 3px rgba(255, 132, 102, 0.22);
+      }
+
+      .incense-2d-stick {
+        position: absolute;
+        bottom: 13px;
+        width: 3px;
+        height: 62px;
+        border-radius: 2px;
+        background: linear-gradient(#ff6b46 0 9px, #d9232f 9px 100%);
+        box-shadow: 0 -2px 7px rgba(255, 80, 45, 0.92);
+      }
+
+      .incense-2d-stick:nth-child(1) { left: 25px; }
+      .incense-2d-stick:nth-child(2) { left: 35px; height: 70px; }
+      .incense-2d-stick:nth-child(3) { left: 45px; }
+
+      .incense-2d-smoke {
+        position: absolute;
+        bottom: 73px;
+        width: 10px;
+        height: 42px;
+        border-left: 3px solid rgba(255, 83, 67, 0.62);
+        border-radius: 50%;
+        opacity: 0;
+        animation: incense-2d-smoke 2.6s ease-out infinite;
+      }
+
+      .incense-2d-smoke.s1 { left: 21px; animation-delay: 0s; }
+      .incense-2d-smoke.s2 { left: 32px; animation-delay: .7s; }
+      .incense-2d-smoke.s3 { left: 43px; animation-delay: 1.4s; }
+
+      @keyframes incense-2d-smoke {
+        0% { opacity: 0; transform: translate(0, 7px) scale(.7); }
+        20% { opacity: .78; }
+        100% { opacity: 0; transform: translate(9px, -35px) scale(1.45); }
+      }
+
+      #sprite-eyelid-left,
+      #sprite-eyelid-right {
+        position: absolute;
+        top: 103px;
+        z-index: 2;
+        width: 34px;
+        height: 12px;
+        border-radius: 50%;
+        background: linear-gradient(#c87622, #d89435);
+        box-shadow: inset 0 -2px rgba(91, 45, 19, 0.28);
+        opacity: 0;
+        transform: scaleY(0.08);
+        transform-origin: 50% 50%;
+      }
+
+      #sprite-eyelid-left { left: 119px; }
+      #sprite-eyelid-right { left: 174px; }
+
+      body.mode-2d #sprite-mode.ready #sprite-eyelid-left,
+      body.mode-2d #sprite-mode.ready #sprite-eyelid-right {
+        animation: sprite-watch-blink 6.2s infinite;
+      }
+
+      body.mode-2d #sprite-mode[data-state="bullish"] #sprite-bull {
+        animation: sprite-watch-bullish 0.92s ease-in-out infinite;
+      }
+
+      body.mode-2d #sprite-mode[data-state="bearish"] #sprite-bull {
+        animation: sprite-watch-bearish 1.6s ease-in-out infinite;
+      }
+
+      body.mode-2d #sprite-mode[data-state="closed"] #sprite-bull {
+        animation: sprite-watch-sleep 4.2s ease-in-out infinite;
+        filter: saturate(0.84) brightness(0.88) drop-shadow(0 10px 11px rgba(0, 0, 0, 0.22));
+      }
+
+      body.mode-2d #sprite-mode.happy #sprite-bull {
+        animation: sprite-watch-happy 0.62s ease-in-out 2;
+      }
+
+      body.mode-2d #sprite-mode.rage #sprite-bull {
+        animation: sprite-watch-rage 0.13s linear 10;
+      }
+
+      @keyframes sprite-watch-breathe {
+        0%, 100% { transform: translateY(1px) scale(1); }
+        50% { transform: translateY(-3px) scale(1.012, 1.02); }
+      }
+
+      @keyframes sprite-watch-blink {
+        0%, 44%, 48%, 82%, 86%, 100% { opacity: 0; transform: scaleY(0.08); }
+        45.2%, 46.8%, 83.2%, 84.8% { opacity: 0.96; transform: scaleY(1); }
+      }
+
+      @keyframes sprite-watch-bullish {
+        0%, 100% { transform: translate(0, 1px) rotate(0); }
+        45% { transform: translate(5px, -9px) rotate(1.8deg); }
+      }
+
+      @keyframes sprite-watch-bearish {
+        0%, 100% { transform: translateY(5px) rotate(-1deg); }
+        50% { transform: translateY(9px) rotate(1deg); }
+      }
+
+      @keyframes sprite-watch-sleep {
+        0%, 100% { transform: translateY(8px) scale(1, 0.98); }
+        50% { transform: translateY(10px) scale(1.012, 0.96); }
+      }
+
+      @keyframes sprite-watch-happy {
+        0%, 100% { transform: translateY(0) rotate(0); }
+        50% { transform: translateY(-10px) rotate(-2.4deg); }
+      }
+
+      @keyframes sprite-watch-rage {
+        0%, 100% { transform: translateX(-3px) rotate(-1deg); }
+        50% { transform: translateX(3px) rotate(1deg); }
+      }
+
+      #close {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        z-index: 32;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.22);
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0.72;
+        transition: opacity 0.18s ease, background 0.18s ease, transform 0.18s ease;
+        -webkit-app-region: no-drag;
+      }
+
+      body:hover #close {
+        opacity: 1;
+      }
+
+      #close:hover {
+        background: rgba(120, 30, 20, 0.55);
+        color: #fff;
+      }
+
+      body.boot-error #status {
+        bottom: 38px;
+        color: #ffd17b;
+        white-space: normal;
+      }
+
+      #exit-confirm {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background: rgba(4, 7, 10, 0.48);
+        backdrop-filter: blur(9px);
+        -webkit-backdrop-filter: blur(9px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+        -webkit-app-region: no-drag;
+      }
+
+      #exit-confirm.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .exit-dialog {
+        width: 222px;
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 17px;
+        background: linear-gradient(145deg, rgba(35,40,47,.94), rgba(13,16,21,.94));
+        box-shadow: 0 18px 45px rgba(0,0,0,.42);
+        color: rgba(255,255,255,.9);
+        text-align: center;
+        transform: translateY(8px) scale(.96);
+        transition: transform .2s cubic-bezier(.2,.8,.2,1);
+      }
+
+      #exit-confirm.open .exit-dialog {
+        transform: translateY(0) scale(1);
+      }
+
+      .exit-dialog .exit-mascot { font-size: 29px; line-height: 1; }
+      .exit-dialog h2 { margin: 8px 0 4px; font: 700 14px/1.3 system-ui,"Microsoft YaHei",sans-serif; }
+      .exit-dialog p { margin: 0 0 13px; color: rgba(255,255,255,.58); font: 10px/1.45 system-ui,"Microsoft YaHei",sans-serif; }
+      .exit-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .exit-dialog-actions button {
+        height: 31px;
+        border: 1px solid rgba(255,255,255,.13);
+        border-radius: 9px;
+        color: #fff;
+        font: 11px/1 system-ui,"Microsoft YaHei",sans-serif;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+      #exit-cancel { background: rgba(255,255,255,.08); }
+      #exit-accept { background: linear-gradient(135deg,#d94b3c,#f0724e); }
+      #exit-cancel:focus-visible,
+      #exit-accept:focus-visible { outline: 2px solid rgba(255,196,128,.8); outline-offset: 2px; }
+
+      #help-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 48;
+        padding: 10px 12px 12px;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 17px;
+        background: linear-gradient(145deg, rgba(25,30,36,.96), rgba(9,12,16,.94));
+        box-shadow: 0 18px 44px rgba(0,0,0,.42);
+        color: rgba(255,255,255,.88);
+        backdrop-filter: blur(13px);
+        -webkit-backdrop-filter: blur(13px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(10px) scale(.98);
+        transition: opacity .2s ease, transform .22s ease;
+        -webkit-app-region: no-drag;
+      }
+
+      #help-panel.open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      .help-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 27px;
+        border-bottom: 1px solid rgba(255,255,255,.09);
+        font: 700 12px/1 system-ui,"Microsoft YaHei",sans-serif;
+      }
+
+      #help-close {
+        width: 23px;
+        height: 23px;
+        padding: 0;
+        border: 1px solid rgba(255,255,255,.13);
+        border-radius: 50%;
+        background: rgba(255,255,255,.06);
+        color: rgba(255,255,255,.78);
+        cursor: pointer;
+      }
+
+      #help-content {
+        height: 248px;
+        margin: 0;
+        padding: 9px 3px 10px 0;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: rgba(255,255,255,.72);
+        font: 10px/1.55 system-ui,"Microsoft YaHei",sans-serif;
+        scrollbar-width: thin;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #sprite-bull,
+        #sprite-eyelid-left,
+        #sprite-eyelid-right { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="drag-handle" title="按住这里拖动窗口" aria-label="拖动窗口">•••</div>
+    <button id="window-reset" type="button" title="恢复 300×300 并回到右下角" aria-label="恢复窗口大小并归位">↘</button>
+    <div id="scene"></div>
+    <div id="sprite-mode" data-state="closed" aria-hidden="true">
+      <canvas id="sprite-bull" width="1254" height="1254"></canvas>
+      <i id="sprite-eyelid-left"></i>
+      <i id="sprite-eyelid-right"></i>
+    </div>
+    <div id="incense-2d" aria-hidden="true">
+      <i class="incense-2d-stick"></i>
+      <i class="incense-2d-stick"></i>
+      <i class="incense-2d-stick"></i>
+      <i class="incense-2d-smoke s1"></i>
+      <i class="incense-2d-smoke s2"></i>
+      <i class="incense-2d-smoke s3"></i>
+      <i class="incense-2d-pot"></i>
+    </div>
+    <div id="quote-card" class="flat" title="点击切换我的股票" role="button" tabindex="0">
+      <div class="quote-head">
+        <span id="quote-name">上证指数</span>
+        <span id="quote-code">sh000001</span>
+      </div>
+      <div class="quote-values">
+        <span id="quote-price">--</span>
+        <span id="quote-trend" aria-hidden="true">→</span>
+        <span id="quote-change">--</span>
+      </div>
+      <div id="roaming-quote-extra" aria-label="持仓盈亏摘要">
+        <div class="roaming-quote-row"><span>今日盈亏</span><strong id="roaming-today-pnl">未设置</strong></div>
+        <div class="roaming-quote-row"><span>累计盈亏</span><strong id="roaming-total-pnl">未设置</strong></div>
+        <div class="roaming-quote-row"><span>成本 / 持股</span><strong id="roaming-position-base">-- / --</strong></div>
+        <div id="roaming-fun-unit">齿轮中可设置持仓</div>
+      </div>
+    </div>
+    <section id="stock-picker-panel" aria-label="我的股票" aria-hidden="true">
+      <div class="picker-head"><span>我的股票</span><button id="picker-close" type="button" aria-label="关闭我的股票">✕</button></div>
+      <div id="saved-stock-list" aria-live="polite"></div>
+      <div class="picker-actions">
+        <button id="picker-detail" type="button">查看当前详情</button>
+        <button id="picker-web" type="button">浏览器看盘 ↗</button>
+      </div>
+    </section>
+    <section id="stock-detail-panel" class="flat" aria-label="股票详情" aria-hidden="true">
+      <div class="detail-head">
+        <div><span id="detail-name">上证指数</span><span id="detail-code">sh000001</span></div>
+        <button id="detail-close" type="button" aria-label="关闭股票详情">✕</button>
+      </div>
+      <div class="detail-price-row">
+        <strong id="detail-price">--</strong><strong id="detail-change">连接中</strong>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-cell"><span>昨日收盘</span><strong id="detail-prev-close">--</strong></div>
+        <div class="detail-cell"><span>今日涨跌</span><strong id="detail-day-change">--</strong></div>
+        <div class="detail-cell"><span>成交量</span><strong id="detail-volume">--</strong></div>
+        <div class="detail-cell"><span>成交额</span><strong id="detail-amount">--</strong></div>
+      </div>
+      <div id="detail-position">未设置持仓，可在齿轮设置中填写</div>
+      <div class="detail-line"><span id="detail-source">数据源 --</span><span id="detail-time">--</span></div>
+      <button id="detail-web" type="button">在浏览器中打开完整行情 ↗</button>
+    </section>
+    <button
+      id="settings-toggle"
+      type="button"
+      title="设置"
+      aria-label="打开设置"
+      aria-expanded="false"
+    >⚙️</button>
+    <section id="settings-panel" aria-label="宠物设置" aria-hidden="true">
+      <div class="settings-title">
+        <span>牛来设置</span>
+        <div class="settings-title-actions">
+          <button id="settings-help" type="button">说明</button>
+          <button id="settings-close" type="button" title="取消并关闭">✕</button>
+        </div>
+      </div>
+      <form id="settings-form">
+        <div class="settings-scroll">
+          <details class="setting-group" open>
+            <summary><b>1</b>股票与自选</summary>
+            <div class="setting-group-body">
+              <div class="market-options" aria-label="展示与搜索的市场">
+                <label><input id="market-cn" type="checkbox" checked />A股</label>
+                <label><input id="market-hk" type="checkbox" checked />港股</label>
+                <label><input id="market-us" type="checkbox" checked />美股</label>
+              </div>
+              <div class="stock-search-row">
+                <input id="setting-symbol" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="名称或代码，如 腾讯 / AAPL" required />
+                <button id="stock-search-button" type="button">搜索</button>
+              </div>
+              <div id="stock-search-results" aria-live="polite"></div>
+              <p class="setting-help">可同时搜索勾选的市场；点选结果后保存即可切换行情。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>2</b>持仓</summary>
+            <div class="setting-group-body">
+              <label class="field-row"><span>成本价</span><input id="setting-cost" type="number" min="0" step="0.001" placeholder="18.50" /></label>
+              <label class="field-row"><span>持股数</span><input id="setting-shares" type="number" min="0" step="0.001" placeholder="1000" /></label>
+              <label class="switch-line"><input id="setting-save-stock" type="checkbox" checked /><span>保存到“我的股票”</span></label>
+              <p class="setting-help">每只股票分别记忆成本和数量，数据只保存在本机。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>3</b>2D / 3D 模式</summary>
+            <div class="setting-group-body">
+              <label class="field-row"><span>显示形态</span><select id="setting-display-mode"><option value="2d">2D 守窗牛</option><option value="3d">3D 动态牛</option><option value="auto">自动双形态</option></select></label>
+              <label class="switch-line"><input id="setting-quote" type="checkbox" checked /><span>显示行情牌</span></label>
+              <label class="switch-line"><input id="setting-quote-follow" type="checkbox" checked /><span>行情牌跟随3D牛</span></label>
+              <p class="setting-help">自动双形态平时使用2D，重要行情才让3D牛出场。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>4</b>桌面巡游</summary>
+            <div class="setting-group-body">
+              <label class="switch-line"><input id="setting-allow-roaming" type="checkbox" checked /><span>允许桌面巡游</span></label>
+              <label class="switch-line"><input id="setting-cross-display" type="checkbox" /><span>允许跨显示器</span></label>
+              <label class="setting-row"><span>巡游速度</span><input id="setting-roaming-speed" type="range" min="30" max="200" value="100" /><output id="value-roaming-speed">100%</output></label>
+              <label class="setting-row"><span>巡游频率</span><input id="setting-roaming-frequency" type="range" min="25" max="200" value="100" /><output id="value-roaming-frequency">100%</output></label>
+              <p class="setting-help">频率控制走动与停留间隔，速度只控制移动快慢。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>5</b>回家与睡眠</summary>
+            <div class="setting-group-body">
+              <label class="switch-line"><input id="setting-auto-home" type="checkbox" checked /><span>演出后自动回家</span></label>
+              <input id="setting-auto-continue" type="checkbox" hidden />
+              <button id="settings-recall" class="inline-setting-button" type="button">一键召回家中</button>
+              <p class="setting-help">休盘、锁屏或显示器变化时始终执行安全回家。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>6</b>声音</summary>
+            <div class="setting-group-body">
+              <label class="switch-line"><input id="setting-sound" type="checkbox" checked /><span>允许牛来 / 妈妈原声音效</span></label>
+              <label class="setting-row"><span>总音量</span><input id="setting-volume" type="range" min="0" max="100" value="90" /><output id="value-volume">90%</output></label>
+              <p class="setting-help">安静办公启用时会临时静音，但不会改写此音量。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>7</b>动作</summary>
+            <div class="setting-group-body">
+              <label class="setting-row"><span>动作幅度</span><input id="setting-motion" type="range" min="0" max="150" value="100" /><output id="value-motion">100%</output></label>
+              <label class="switch-line"><input id="setting-extreme-performance" type="checkbox" checked /><span>启用极端行情完整演出</span></label>
+              <p class="setting-help">关闭后，快速拉升、跳水和涨跌停只使用轻动作与小牌提醒。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>8</b>特效</summary>
+            <div class="setting-group-body">
+              <label class="setting-row"><span>特效强度</span><input id="setting-effects" type="range" min="0" max="150" value="100" /><output id="value-effects">100%</output></label>
+              <label class="field-row"><span>特效质量</span><select id="setting-effects-quality"><option value="low">低 · 少粒子</option><option value="balanced">均衡</option><option value="high">高 · 丰富粒子</option></select></label>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>9</b>性能</summary>
+            <div class="setting-group-body">
+              <label class="switch-line"><input id="setting-power-save" type="checkbox" checked /><span>省电模式</span></label>
+              <label class="setting-row"><span>模型大小</span><input id="setting-scale" type="range" min="75" max="120" value="100" /><output id="value-scale">100%</output></label>
+              <label class="field-row"><span>模型质量</span><select id="setting-model-quality"><option value="low">低</option><option value="balanced">均衡</option><option value="high">高</option></select></label>
+              <label class="field-row"><span>最大帧率</span><select id="setting-max-fps"><option value="24">24 FPS</option><option value="30">30 FPS</option><option value="45">45 FPS</option><option value="60">60 FPS</option></select></label>
+              <div id="power-recommendation" class="recommendation"><span>省电推荐：30 FPS、低质量、巡游55%</span><button id="apply-power-recommendation" type="button">应用推荐</button></div>
+              <p class="setting-help">推荐不会自动覆盖手动设置；只有点击“应用推荐”才修改表单。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>10</b>提醒触发器</summary>
+            <div class="setting-group-body">
+              <button id="settings-features" class="inline-setting-button" type="button">管理提醒与安静办公</button>
+              <p class="setting-help">支持价格、涨跌幅、成本、盈亏、快速拉升与快速跳水。</p>
+            </div>
+          </details>
+          <details class="setting-group">
+            <summary><b>11</b>数据与隐私</summary>
+            <div class="setting-group-body">
+              <p class="privacy-note">股票代码、持仓、提醒、情绪和偏好仅保存在这台电脑，不上传到任何账户或云端。</p>
+              <button id="settings-recenter" class="inline-setting-button" type="button">窗口恢复300×300并归位</button>
+              <p class="setting-help restart-note">本页设置均即时生效，无需重启。仅替换模型文件等资源操作需要重启软件。</p>
+            </div>
+          </details>
+        </div>
+        <div class="settings-actions">
+          <button id="settings-reset" type="button">恢复默认</button>
+          <button id="settings-save" type="submit">保存</button>
+          <button id="settings-cancel" type="button">取消</button>
+        </div>
+      </form>
+    </section>
+    <section id="feature-panel" aria-label="特色功能设置" aria-hidden="true">
+      <div class="feature-head">
+        <span>本地特色功能</span>
+        <button id="feature-close" type="button" aria-label="关闭特色功能设置">✕</button>
+      </div>
+      <form id="feature-form">
+        <div class="feature-section">
+          <div class="feature-section-title"><span>情绪与收盘</span><span id="emotion-status">未启用</span></div>
+          <div class="feature-checks">
+            <label><input id="feature-emotion" type="checkbox" />情绪记忆</label>
+            <label><input id="feature-summary" type="checkbox" />收盘总结</label>
+          </div>
+        </div>
+        <div class="feature-section">
+          <div class="feature-section-title"><span>安静办公模式</span><label><input id="feature-quiet" type="checkbox" /> 启用</label></div>
+          <div class="quiet-times">
+            <label><span>开始</span><input id="feature-quiet-start" type="time" value="09:30" /></label>
+            <label><span>结束</span><input id="feature-quiet-end" type="time" value="11:30" /></label>
+          </div>
+        </div>
+        <div class="feature-section">
+          <div class="feature-section-title"><span>用户提醒触发器</span><span>最多20条</span></div>
+          <div class="trigger-editor">
+            <select id="trigger-type" aria-label="提醒条件">
+              <option value="price">价格达到</option>
+              <option value="change_pct">涨跌幅达到</option>
+              <option value="cost_return">回到成本价</option>
+              <option value="pnl_amount">盈亏达到金额</option>
+              <option value="rapid_rise">快速拉升</option>
+              <option value="rapid_fall">快速跳水</option>
+            </select>
+            <select id="trigger-comparator" aria-label="比较方式"><option value="gte">大于等于</option><option value="lte">小于等于</option></select>
+            <input id="trigger-value" type="number" step="0.01" value="0" aria-label="目标值" />
+            <select id="trigger-presentation" aria-label="提醒方式"><option value="card">仅行情牌</option><option value="2d">2D动作</option><option value="3d">3D演出</option></select>
+            <label class="trigger-sound"><input id="trigger-sound" type="checkbox" />播放声音</label>
+            <button id="trigger-add" type="button">添加提醒</button>
+          </div>
+          <div id="trigger-list" aria-live="polite"></div>
+        </div>
+        <button id="feature-save" type="submit">保存特色设置</button>
+      </form>
+    </section>
+    <section id="close-summary-panel" aria-label="今日收盘总结" aria-hidden="true">
+      <div class="summary-head"><span>牛来 · 今日收盘总结</span><button id="summary-close" type="button" aria-label="关闭收盘总结">✕</button></div>
+      <div id="summary-date" class="summary-date">--</div>
+      <div class="summary-grid">
+        <div class="summary-cell"><span>今日涨跌</span><strong id="summary-change">--</strong></div>
+        <div class="summary-cell"><span>今日持仓盈亏</span><strong id="summary-pnl">--</strong></div>
+        <div class="summary-cell"><span>最大浮盈</span><strong id="summary-max-profit">--</strong></div>
+        <div class="summary-cell"><span>最大回撤</span><strong id="summary-drawdown">--</strong></div>
+        <div id="summary-move" class="summary-cell"><span>最明显的短时行情</span><strong>--</strong></div>
+      </div>
+      <div id="summary-comment">收盘先记账，明天不跟第一根线冲动。</div>
+      <button id="summary-disable" type="button">关闭以后自动展示</button>
+    </section>
+    <section id="help-panel" aria-label="软件介绍与使用说明" aria-hidden="true">
+      <div class="help-head">
+        <span>牛来盯盘 · 使用说明</span>
+        <button id="help-close" type="button" aria-label="关闭使用说明">✕</button>
+      </div>
+      <pre id="help-content">说明文档加载中…</pre>
+    </section>
+    <div id="interaction-layer" aria-label="牛模型互动区域"></div>
+    <div id="speech-bubble" role="status"></div>
+    <div id="alert-toast" role="status" aria-live="polite"></div>
+    <div id="quiet-indicator" aria-hidden="true">安静办公</div>
+    <div id="status">牛来正在启动…</div>
+    <div id="position-pnl" hidden>
+      <div id="pnl-total"></div>
+      <div id="pnl-today"></div>
+    </div>
+    <div id="pet-toolbar" aria-label="宠物互动工具栏">
+      <button id="action-incense" type="button">🕯️ 上香</button>
+      <button id="action-bull-feed" type="button">📈 喂大阳线</button>
+      <button id="action-bear-feed" type="button">📉 喂大阴线</button>
+    </div>
+    <button
+      id="close"
+      type="button"
+      title="退出"
+      aria-label="询问是否退出软件"
+    >✕</button>
+    <section id="exit-confirm" role="dialog" aria-modal="true" aria-labelledby="exit-title" aria-hidden="true">
+      <div class="exit-dialog">
+        <div class="exit-mascot" aria-hidden="true">🐂</div>
+        <h2 id="exit-title">要让牛来休息了吗？</h2>
+        <p>退出后将停止盯盘，已保存的股票和持仓不会丢失。</p>
+        <div class="exit-dialog-actions">
+          <button id="exit-cancel" type="button">继续陪我</button>
+          <button id="exit-accept" type="button">确认退出</button>
+        </div>
+      </div>
+    </section>
+    <script>
+      window.__NIULAI_RENDERER_READY__ = false;
+      window.__NIULAI_BOOT_ERRORS__ = [];
+      window.addEventListener('error', function (event) {
+        var message = String(event.message || '未知渲染错误');
+        window.__NIULAI_BOOT_ERRORS__.push(message);
+        window.desktopPet?.report?.('error', '启动错误: ' + message);
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var message = String(event.reason?.stack || event.reason || '未知异步错误');
+        window.__NIULAI_BOOT_ERRORS__.push(message);
+        window.desktopPet?.report?.('error', '启动异步错误: ' + message);
+      });
+
+      (function installEmergencyControls() {
+        var close = document.getElementById('close');
+        var dialog = document.getElementById('exit-confirm');
+        var cancel = document.getElementById('exit-cancel');
+        var accept = document.getElementById('exit-accept');
+        function setOpen(open) {
+          if (window.__NIULAI_RENDERER_READY__) return;
+          dialog.classList.toggle('open', open);
+          dialog.setAttribute('aria-hidden', String(!open));
+        }
+        close.addEventListener('click', function () { setOpen(true); });
+        cancel.addEventListener('click', function () { setOpen(false); });
+        accept.addEventListener('click', function () {
+          if (!window.__NIULAI_RENDERER_READY__) window.desktopPet?.quit?.();
+        });
+        window.setTimeout(function () {
+          if (window.__NIULAI_RENDERER_READY__) return;
+          document.body.classList.add('boot-error');
+          document.getElementById('status').textContent = '启动没有完成，请点右上角 × 安全退出';
+          window.desktopPet?.report?.(
+            'error',
+            '渲染器 8 秒内未就绪: ' + window.__NIULAI_BOOT_ERRORS__.join(' | ')
+          );
+        }, 8000);
+      })();
+    </script>
+    <script defer src="./renderer.bundle.js"></script>
+  </body>
+</html>

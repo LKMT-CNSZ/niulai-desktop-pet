@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "asset": "bull-rigged.glb",
+  "coordinateSystem": {
+    "up": "+Y",
+    "forward": "+Z",
+    "unit": "meter",
+    "origin": "feet_center_on_ground"
+  },
+  "limits": {
+    "maximumTriangles": 45000,
+    "maximumTextureSize": 2048,
+    "maximumBones": 72,
+    "maximumInfluencesPerVertex": 4
+  },
+  "requiredBones": [
+    "root",
+    "pelvis",
+    "spine_01",
+    "spine_02",
+    "chest",
+    "neck",
+    "head",
+    "jaw",
+    "ear_l",
+    "ear_r",
+    "upperarm_l",
+    "lowerarm_l",
+    "hoof_hand_l",
+    "upperarm_r",
+    "lowerarm_r",
+    "hoof_hand_r",
+    "thigh_l",
+    "shin_l",
+    "hoof_l",
+    "thigh_r",
+    "shin_r",
+    "hoof_r",
+    "tail_01",
+    "tail_02",
+    "tail_03"
+  ],
+  "morphTargets": [
+    "blink_l",
+    "blink_r",
+    "mouth_open",
+    "smile",
+    "frown"
+  ],
+  "locomotion": {
+    "walkMetersPerSecond": 0.82,
+    "runMetersPerSecond": 1.85,
+    "rootMotion": false,
+    "footLockToleranceMeters": 0.018
+  },
+  "actions": {
+    "idle_breathe": { "loop": true, "events": [] },
+    "idle_look": { "loop": true, "events": [] },
+    "idle_tail": { "loop": true, "events": [] },
+    "idle_scratch": { "loop": false, "events": [] },
+    "idle_yawn": { "loop": false, "events": [{ "normalizedTime": 0.46, "event": "mouth_open" }] },
+    "walk": { "loop": true, "events": [{ "normalizedTime": 0.04, "event": "footstep_left" }, { "normalizedTime": 0.54, "event": "footstep_right" }] },
+    "run": { "loop": true, "events": [{ "normalizedTime": 0.02, "event": "footstep_left" }, { "normalizedTime": 0.52, "event": "footstep_right" }] },
+    "turn_left": { "loop": false, "events": [{ "normalizedTime": 0.54, "event": "footstep_left" }] },
+    "turn_right": { "loop": false, "events": [{ "normalizedTime": 0.54, "event": "footstep_right" }] },
+    "happy": { "loop": false, "events": [] },
+    "sad": { "loop": false, "events": [] },
+    "ground_paw": { "loop": false, "events": [{ "normalizedTime": 0.32, "event": "paw_dust" }, { "normalizedTime": 0.72, "event": "paw_dust" }] },
+    "charge": { "loop": false, "events": [{ "normalizedTime": 0.12, "event": "nostril_smoke" }, { "normalizedTime": 0.78, "event": "impact_text" }] },
+    "brake": { "loop": false, "events": [{ "normalizedTime": 0.35, "event": "brake_dust" }] },
+    "fall": { "loop": false, "events": [{ "normalizedTime": 0.68, "event": "body_impact" }] },
+    "get_up": { "loop": false, "events": [] },
+    "sleep_enter": { "loop": false, "events": [] },
+    "sleep_loop": { "loop": true, "events": [] },
+    "wake_up": { "loop": false, "events": [] },
+    "click_react": { "loop": false, "events": [] }
+  }
+}

@@ -1,0 +1,8 @@
+/*
+  X-Niulai-Hosting: cloudflare-pages
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/sw.js
+  Service-Worker-Allowed: /

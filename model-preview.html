@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>牛来骨骼模型预览</title>
+    <style>
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body {
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 50% 38%, rgba(255,255,255,.96), rgba(235,225,207,.95) 58%, rgba(214,199,177,.98));
+        color: #3d2a1d;
+        font-family: system-ui, sans-serif;
+      }
+      canvas { width: 100%; height: 100%; }
+      #label {
+        position: fixed; left: 22px; top: 18px; padding: 8px 12px;
+        border-radius: 999px; background: rgba(255,255,255,.70);
+        box-shadow: 0 5px 18px rgba(69,43,23,.12); font-size: 14px;
+      }
+      #metrics {
+        position: fixed; right: 18px; bottom: 16px; color: rgba(61,42,29,.72);
+        font-size: 12px; text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="label">骨骼牛基础材质版</div>
+    <div id="metrics">加载中</div>
+    <script src="./model-preview.bundle.js"></script>
+  </body>
+</html>
